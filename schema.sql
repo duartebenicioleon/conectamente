@@ -1,0 +1,41 @@
+CREATE TABLE IF NOT EXISTS users (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(60) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  age SMALLINT NOT NULL CHECK (age >= 18 AND age <= 100),
+  city VARCHAR(100) DEFAULT '',
+  bio VARCHAR(500) DEFAULT '',
+  photo_url TEXT DEFAULT '',
+  interests TEXT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS likes (
+  id BIGSERIAL PRIMARY KEY,
+  from_user BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  to_user BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(from_user, to_user),
+  CHECK(from_user <> to_user)
+);
+
+CREATE TABLE IF NOT EXISTS matches (
+  id BIGSERIAL PRIMARY KEY,
+  user_a BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_b BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_a, user_b),
+  CHECK(user_a < user_b)
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id BIGSERIAL PRIMARY KEY,
+  match_id BIGINT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  sender_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body VARCHAR(2000) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS messages_match_created_idx ON messages(match_id, created_at);
+CREATE INDEX IF NOT EXISTS likes_to_user_idx ON likes(to_user);

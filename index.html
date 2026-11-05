@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#171326">
+<title>ConectaMente · Comunidad</title>
+<style>
+:root{font-family:Inter,system-ui,Arial,sans-serif;color:#fff;background:#171326}*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 0,#38245a 0,transparent 38%),#171326}
+main{width:min(100% - 28px,960px);margin:auto;padding:28px 0 60px}.brand{font-size:26px;font-weight:850;letter-spacing:-1px}.brand span{color:#d6a8ff}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.pill{border:1px solid #ffffff26;border-radius:30px;padding:8px 12px;color:#e5d7f6}
+.panel{background:#241e35;border:1px solid #ffffff18;border-radius:22px;padding:22px;box-shadow:0 18px 60px #09061255}
+h1{font-size:clamp(28px,5vw,42px);margin:0 0 8px}p{color:#c9bfd8;line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}.field{display:grid;gap:7px;margin:12px 0}
+input,button{font:inherit}input{width:100%;border:1px solid #ffffff25;background:#171326;color:#fff;padding:13px 14px;border-radius:12px}
+button{border:0;border-radius:14px;padding:13px 18px;font-weight:750;cursor:pointer;color:#21162d;background:linear-gradient(110deg,#e4b5ff,#ffb6d0)}
+button.secondary{background:#39304c;color:#fff;border:1px solid #ffffff24}button:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.hidden{display:none!important}.muted{font-size:13px;color:#b7a9c9}
+#status{margin-top:14px;color:#ffcfdf;min-height:22px}.match{border-top:1px solid #ffffff18;padding:12px 0}
+</style></head>
+<body><main>
+<header><div class="brand">Conecta<span>Mente</span></div><div class="pill">Comunidad +18</div></header>
+<section class="panel" id="welcome"><h1>Conectá con personas reales.</h1><p>Creá tu cuenta para descubrir perfiles, generar coincidencias y conversar. Esta es la base conectada al servidor de ConectaMente.</p>
+<div class="grid">
+<div><h2>Crear cuenta</h2><form id="register">
+<label class="field">Nombre<input name="name" required maxlength="60"></label>
+<label class="field">Email<input name="email" type="email" required></label>
+<label class="field">Contraseña<input name="password" type="password" minlength="8" required></label>
+<label class="field">Edad<input name="age" type="number" min="18" max="100" required></label>
+<label class="field">Ciudad<input name="city" maxlength="100"></label><button>Registrarme</button></form></div>
+<div><h2>Iniciar sesión</h2><form id="login">
+<label class="field">Email<input name="email" type="email" required></label>
+<label class="field">Contraseña<input name="password" type="password" required></label><button class="secondary">Entrar</button></form>
+<p class="muted">La contraseña se guarda cifrada en el servidor. No compartas tu clave con nadie.</p></div></div><div id="status"></div></section>
+<section class="panel hidden" id="app"><div class="grid"><div><h1 id="hello">¡Hola!</h1><p>Tu cuenta está conectada al backend.</p><div class="actions"><button id="discover">Buscar perfiles</button><button class="secondary" id="matches">Ver coincidencias</button><button class="secondary" id="logout">Cerrar sesión</button></div></div><div><h2>Perfiles</h2><div id="profiles" class="muted">Todavía no buscaste perfiles.</div><h2>Coincidencias</h2><div id="matchlist" class="muted">Todavía no hay coincidencias.</div></div></div><div id="status2"></div></section>
+</main>
+<script>
+const $=s=>document.querySelector(s);let token=localStorage.getItem('cm_token');let me=null;
+async function api(path,opts={}){const r=await fetch('/api'+path,{...opts,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{}),...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'Error de conexión');return d}
+function formData(f){return Object.fromEntries(new FormData(f).entries())}
+function showApp(user){me=user;$('#welcome').classList.add('hidden');$('#app').classList.remove('hidden');$('#hello').textContent='¡Hola, '+user.name+'!'}
+async function enter(path,form){try{const d=await api(path,{method:'POST',body:JSON.stringify(formData(form))});token=d.token;localStorage.setItem('cm_token',token);showApp(d.user);$('#status').textContent=''}catch(e){$('#status').textContent=e.message}}
+$('#register').onsubmit=e=>{e.preventDefault();enter('/auth/register',e.target)};
+$('#login').onsubmit=e=>{e.preventDefault();enter('/auth/login',e.target)};
+$('#logout').onclick=()=>{token=null;localStorage.removeItem('cm_token');location.reload()};
+$('#discover').onclick=async()=>{try{const d=await api('/discover');$('#profiles').innerHTML='';if(!d.profiles.length)$('#profiles').textContent='Todavía no hay otros perfiles registrados.';d.profiles.forEach(p=>{const el=document.createElement('div');el.className='match';const title=document.createElement('strong');title.textContent=p.name+' · '+p.age;const desc=document.createElement('p');desc.textContent=(p.city||'')+' '+(p.bio||'');const b=document.createElement('button');b.textContent='Me gusta';b.onclick=async()=>{try{const result=await api('/likes',{method:'POST',body:JSON.stringify({userId:p.id})});b.disabled=true;b.textContent=result.matched?'¡Es match!':'Like enviado';}catch(e){$('#status2').textContent=e.message}};el.append(title,desc,b);$('#profiles').append(el)})}catch(e){$('#status2').textContent=e.message}};
+$('#matches').onclick=async()=>{try{const d=await api('/matches');$('#matchlist').innerHTML='';if(!d.matches.length)$('#matchlist').textContent='Todavía no hay coincidencias.';d.matches.forEach(m=>{const el=document.createElement('div');el.className='match';el.textContent=m.user.name+' · '+m.user.age+' · Coincidencia #'+m.matchId;$('#matchlist').append(el)})}catch(e){$('#status2').textContent=e.message}};
+if(token)api('/me').then(d=>showApp(d.user)).catch(()=>{token=null;localStorage.removeItem('cm_token')});
+</script></body></html>
